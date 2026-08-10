@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Esfera {
+  FEDERAL
+  ESTADUAL
+  MUNICIPAL
+}
+
+enum StatusParcelamento {
+  ATIVO
+  QUITADO
+  RESCINDIDO
+}
+
+enum StatusParcela {
+  PENDENTE
+  PAGA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Empresa {
+  id            String         @id @default(cuid())
+  nome          String
+  cnpj          String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  parcelamentos Parcelamento[]
+}
+
+model Parcelamento {
+  id             String             @id @default(cuid())
+  empresaId      String
+  empresa        Empresa            @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  esfera         Esfera
+  orgao          String
+  numero         String?
+  descricao      String?
+  valorTotal     Float
+  numeroParcelas Int
+  dataInicio     DateTime
+  status         StatusParcelamento @default(ATIVO)
+  observacoes    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  parcelas       Parcela[]
+
+  @@index([empresaId])
+  @@index([esfera])
+  @@index([status])
+}
+
+model Parcela {
+  id             String        @id @default(cuid())
+  parcelamentoId String
+  parcelamento   Parcelamento  @relation(fields: [parcelamentoId], references: [id], onDelete: Cascade)
+  numero         Int
+  valor          Float
+  vencimento     DateTime
+  status         StatusParcela @default(PENDENTE)
+  dataPagamento  DateTime?
+  valorPago      Float?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([parcelamentoId])
+  @@index([vencimento])
+  @@index([status])
+}
