@@ -8,7 +8,9 @@ const LINKS = [
   { href: "/dashboard", label: "Painel" },
   { href: "/empresas", label: "Empresas" },
   { href: "/parcelamentos", label: "Parcelamentos" },
+  { href: "/mensal", label: "Envio mensal" },
   { href: "/relatorios", label: "Relatórios" },
+  { href: "/importar", label: "Importar" },
 ];
 
 export function NavBar({ userName }: { userName: string }) {

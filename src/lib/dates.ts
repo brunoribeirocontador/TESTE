@@ -28,3 +28,35 @@ export function startOfMonthUTC(date: Date = new Date()) {
 export function startOfNextMonthUTC(date: Date = new Date()) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
 }
+
+export function parseMonthParam(value: string | undefined) {
+  const hoje = startOfTodayUTC();
+  if (value && /^\d{4}-\d{2}$/.test(value)) {
+    const [ano, mes] = value.split("-").map(Number);
+    return new Date(Date.UTC(ano, mes - 1, 1));
+  }
+  return startOfMonthUTC(hoje);
+}
+
+export function toMonthParam(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+const NOMES_MES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+export function formatMonthLabel(date: Date) {
+  return `${NOMES_MES[date.getUTCMonth()]} de ${date.getUTCFullYear()}`;
+}

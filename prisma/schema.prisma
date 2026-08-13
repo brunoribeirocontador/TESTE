@@ -74,6 +74,8 @@ model Parcela {
   status         StatusParcela @default(PENDENTE)
   dataPagamento  DateTime?
   valorPago      Float?
+  notificado     Boolean       @default(false)
+  dataNotificacao DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
