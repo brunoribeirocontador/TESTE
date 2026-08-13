@@ -13,6 +13,17 @@ const EmpresaSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v ? v : undefined)),
+  telefone: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v : undefined))
+    .pipe(z.email("E-mail inválido.").optional()),
 });
 
 export type EmpresaFormState = { error?: string } | undefined;
@@ -26,6 +37,8 @@ export async function createEmpresa(
   const parsed = EmpresaSchema.safeParse({
     nome: formData.get("nome"),
     cnpj: formData.get("cnpj"),
+    telefone: formData.get("telefone"),
+    email: formData.get("email"),
   });
 
   if (!parsed.success) {
@@ -57,6 +70,8 @@ export async function updateEmpresa(
   const parsed = EmpresaSchema.safeParse({
     nome: formData.get("nome"),
     cnpj: formData.get("cnpj"),
+    telefone: formData.get("telefone"),
+    email: formData.get("email"),
   });
 
   if (!parsed.success) {

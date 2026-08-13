@@ -6,6 +6,7 @@ import {
   formatCurrency,
   formatDate,
 } from "@/lib/format";
+import { parseDateOnlyUTC } from "@/lib/dates";
 
 type Esfera = "FEDERAL" | "ESTADUAL" | "MUNICIPAL";
 type StatusParcelamento = "ATIVO" | "QUITADO" | "RESCINDIDO";
@@ -13,14 +14,21 @@ type StatusParcelamento = "ATIVO" | "QUITADO" | "RESCINDIDO";
 export default async function ParcelamentosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ esfera?: string; status?: string; empresaId?: string }>;
+  searchParams: Promise<{ esfera?: string; status?: string; empresaId?: string; vencimento?: string }>;
 }) {
   const filters = await searchParams;
+  const dataVencimentoFiltro =
+    filters.vencimento && /^\d{4}-\d{2}-\d{2}$/.test(filters.vencimento)
+      ? parseDateOnlyUTC(filters.vencimento)
+      : undefined;
 
   const where = {
     ...(filters.esfera ? { esfera: filters.esfera as Esfera } : {}),
     ...(filters.status ? { status: filters.status as StatusParcelamento } : {}),
     ...(filters.empresaId ? { empresaId: filters.empresaId } : {}),
+    ...(dataVencimentoFiltro
+      ? { parcelas: { some: { vencimento: dataVencimentoFiltro } } }
+      : {}),
   };
 
   const [parcelamentos, empresas] = await Promise.all([
@@ -38,6 +46,7 @@ export default async function ParcelamentosPage({
     if (merged.esfera) params.set("esfera", merged.esfera);
     if (merged.status) params.set("status", merged.status);
     if (merged.empresaId) params.set("empresaId", merged.empresaId);
+    if (merged.vencimento) params.set("vencimento", merged.vencimento);
     const qs = params.toString();
     return qs ? `/parcelamentos?${qs}` : "/parcelamentos";
   }
@@ -57,7 +66,20 @@ export default async function ParcelamentosPage({
         </Link>
       </div>
 
+      {dataVencimentoFiltro && (
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-slate-300 bg-slate-50 px-4 py-2 text-sm">
+          <span>
+            Mostrando parcelamentos com parcela vencendo em{" "}
+            <strong>{formatDate(dataVencimentoFiltro)}</strong>
+          </span>
+          <Link href={buildHref({ vencimento: undefined })} className="text-slate-600 hover:underline">
+            Limpar
+          </Link>
+        </div>
+      )}
+
       <form className="mt-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
+        {filters.vencimento && <input type="hidden" name="vencimento" value={filters.vencimento} />}
         <select
           name="esfera"
           defaultValue={filters.esfera ?? ""}
@@ -96,7 +118,7 @@ export default async function ParcelamentosPage({
         >
           Filtrar
         </button>
-        {(filters.esfera || filters.status || filters.empresaId) && (
+        {(filters.esfera || filters.status || filters.empresaId || filters.vencimento) && (
           <Link
             href="/parcelamentos"
             className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-500 hover:underline"

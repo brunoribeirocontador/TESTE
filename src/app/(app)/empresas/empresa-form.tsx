@@ -11,7 +11,12 @@ export function EmpresaForm({
   submitLabel,
 }: {
   action: Action;
-  defaultValues?: { nome: string; cnpj: string | null };
+  defaultValues?: {
+    nome: string;
+    cnpj: string | null;
+    telefone?: string | null;
+    email?: string | null;
+  };
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
@@ -41,6 +46,33 @@ export function EmpresaForm({
           placeholder="00.000.000/0000-00"
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
         />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="telefone" className="block text-sm font-medium text-slate-700">
+            Telefone <span className="text-slate-400">(opcional)</span>
+          </label>
+          <input
+            id="telefone"
+            name="telefone"
+            defaultValue={defaultValues?.telefone ?? ""}
+            placeholder="(11) 99999-9999"
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+          />
+        </div>
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+            E-mail <span className="text-slate-400">(opcional)</span>
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            defaultValue={defaultValues?.email ?? ""}
+            placeholder="contato@empresa.com"
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+          />
+        </div>
       </div>
       {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button

@@ -36,9 +36,20 @@ model Empresa {
   id            String         @id @default(cuid())
   nome          String
   cnpj          String?        @unique
+  telefone      String?
+  email         String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   parcelamentos Parcelamento[]
+}
+
+model ConfiguracaoEscritorio {
+  id             String   @id @default("default")
+  nome           String   @default("Controle de Parcelamentos")
+  logo           String?
+  corEmail       String   @default("#0f172a")
+  telefone       String?
+  updatedAt      DateTime @updatedAt
 }
 
 model Parcelamento {

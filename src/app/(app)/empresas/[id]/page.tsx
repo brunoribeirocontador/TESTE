@@ -42,7 +42,12 @@ export default async function EmpresaDetailPage({
             <div className="mt-4">
               <EmpresaForm
                 action={boundUpdate}
-                defaultValues={{ nome: empresa.nome, cnpj: empresa.cnpj }}
+                defaultValues={{
+                  nome: empresa.nome,
+                  cnpj: empresa.cnpj,
+                  telefone: empresa.telefone,
+                  email: empresa.email,
+                }}
                 submitLabel="Salvar alterações"
               />
             </div>

@@ -13,6 +13,8 @@ import {
 
 const DIAS_ALERTA = 15;
 const ATRASOS_ALERTA_EMPRESA = 3;
+const ATRASOS_MINIMO_LISTAGEM = 2;
+const DIAS_AVISO_ENVIO = 10;
 
 export default async function DashboardPage({
   searchParams,
@@ -35,8 +37,13 @@ export default async function DashboardPage({
     (p) => p.vencimento >= hoje && p.vencimento <= limiteAlerta
   );
 
+  const limiteAvisoEnvio = new Date(hoje);
+  limiteAvisoEnvio.setUTCDate(limiteAvisoEnvio.getUTCDate() + DIAS_AVISO_ENVIO);
+  const avisoEnvioPendente = parcelasPendentes.filter(
+    (p) => p.vencimento >= hoje && p.vencimento <= limiteAvisoEnvio && !p.notificado
+  );
+
   const saldoTotal = parcelasPendentes.reduce((acc, p) => acc + p.valor, 0);
-  const saldoAtrasado = atrasadas.reduce((acc, p) => acc + p.valor, 0);
 
   const porEsfera = { FEDERAL: 0, ESTADUAL: 0, MUNICIPAL: 0 } as Record<string, number>;
   for (const p of parcelasPendentes) {
@@ -64,6 +71,14 @@ export default async function DashboardPage({
   const empresasComAtraso = todasEmpresasComSaldo.filter((e) => e.atrasadas > 0);
   const empresasAtrasoCritico = empresasComAtraso.filter((e) => e.atrasadas > ATRASOS_ALERTA_EMPRESA);
 
+  const empresasComAtrasoRelevante = new Set(
+    todasEmpresasComSaldo.filter((e) => e.atrasadas > ATRASOS_MINIMO_LISTAGEM).map((e) => e.empresaId)
+  );
+  const atrasadasListagem = atrasadas.filter((p) =>
+    empresasComAtrasoRelevante.has(p.parcelamento.empresaId)
+  );
+  const saldoAtrasadoListagem = atrasadasListagem.reduce((acc, p) => acc + p.valor, 0);
+
   const inicioMes = startOfMonthUTC(hoje);
   const fimMes = startOfNextMonthUTC(hoje);
 
@@ -73,17 +88,26 @@ export default async function DashboardPage({
       db.parcelamento.count({ where: { status: "ATIVO" } }),
       db.parcelamento.findMany({
         where: { valorOriginal: { not: null } },
-        select: { valorOriginal: true, valorTotal: true },
+        select: { valorOriginal: true, valorTotal: true, empresa: { select: { id: true, nome: true } } },
       }),
       db.parcela.count({
         where: { vencimento: { gte: inicioMes, lt: fimMes }, notificado: false },
       }),
     ]);
 
-  const economiaTotal = parcelamentosComReducao.reduce((acc, p) => {
+  const economiaPorEmpresaMap = new Map<string, { nome: string; economia: number; qtd: number }>();
+  for (const p of parcelamentosComReducao) {
     const economia = (p.valorOriginal ?? 0) - p.valorTotal;
-    return economia > 0 ? acc + economia : acc;
-  }, 0);
+    if (economia <= 0) continue;
+    const atual = economiaPorEmpresaMap.get(p.empresa.id) ?? { nome: p.empresa.nome, economia: 0, qtd: 0 };
+    atual.economia += economia;
+    atual.qtd += 1;
+    economiaPorEmpresaMap.set(p.empresa.id, atual);
+  }
+  const economiaPorEmpresa = [...economiaPorEmpresaMap.entries()]
+    .map(([empresaId, v]) => ({ empresaId, ...v }))
+    .sort((a, b) => b.economia - a.economia);
+  const economiaTotal = economiaPorEmpresa.reduce((acc, e) => acc + e.economia, 0);
 
   const mesCalendario = parseMonthParam(mes);
   const inicioCalendario = mesCalendario;
@@ -155,6 +179,41 @@ export default async function DashboardPage({
         ))}
       </div>
 
+      {economiaPorEmpresa.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-slate-900">Economia por empresa</h2>
+          <p className="text-xs text-slate-500">
+            Empresas com parcelamentos que tiveram redução em relação ao valor original.
+          </p>
+          <div className="mt-3 overflow-hidden rounded-lg border border-emerald-200 bg-white">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-emerald-50 text-left text-xs font-medium uppercase tracking-wide text-emerald-700">
+                <tr>
+                  <th className="px-4 py-2">Empresa</th>
+                  <th className="px-4 py-2">Parcelamentos com redução</th>
+                  <th className="px-4 py-2 text-right">Economia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {economiaPorEmpresa.map((e) => (
+                  <tr key={e.empresaId} className="hover:bg-slate-50">
+                    <td className="px-4 py-2">
+                      <Link href={`/empresas/${e.empresaId}`} className="font-medium text-slate-900 hover:underline">
+                        {e.nome}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-slate-700">{e.qtd}</td>
+                    <td className="px-4 py-2 text-right font-medium text-emerald-700">
+                      {formatCurrency(e.economia)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900">Calendário de vencimentos</h2>
@@ -177,19 +236,19 @@ export default async function DashboardPage({
         <CalendarioMes mes={mesCalendario} hoje={hoje} porDia={porDia} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <section>
           <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            Parcelas em atraso
-            {atrasadas.length > 0 && (
+            Empresas com mais de {ATRASOS_MINIMO_LISTAGEM} parcelas em atraso
+            {atrasadasListagem.length > 0 && (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                {formatCurrency(saldoAtrasado)}
+                {formatCurrency(saldoAtrasadoListagem)}
               </span>
             )}
           </h2>
           <AlertList
-            parcelas={atrasadas}
-            empty="Nenhuma parcela em atraso."
+            parcelas={atrasadasListagem}
+            empty={`Nenhuma empresa com mais de ${ATRASOS_MINIMO_LISTAGEM} parcelas em atraso.`}
             variant="atraso"
           />
         </section>
@@ -203,6 +262,30 @@ export default async function DashboardPage({
             empty="Nenhuma parcela vencendo em breve."
             variant="alerta"
           />
+        </section>
+
+        <section>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            Aviso: envio pendente ({DIAS_AVISO_ENVIO} dias)
+            {avisoEnvioPendente.length > 0 && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                {avisoEnvioPendente.length}
+              </span>
+            )}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Vencem em até {DIAS_AVISO_ENVIO} dias e ainda não foram avisadas ao cliente.
+          </p>
+          <AlertList
+            parcelas={avisoEnvioPendente}
+            empty="Nenhum aviso pendente."
+            variant="alerta"
+          />
+          {avisoEnvioPendente.length > 0 && (
+            <Link href="/mensal" className="mt-2 inline-block text-xs font-medium text-slate-600 hover:underline">
+              Ir para envio mensal →
+            </Link>
+          )}
         </section>
       </div>
 
@@ -356,24 +439,38 @@ function CalendarioMes({
                 ? "bg-slate-50 text-slate-600 border-slate-200"
                 : "border-transparent text-slate-500";
 
-          return (
-            <div
-              key={dia}
-              title={
-                info
-                  ? `${info.total} parcela(s) vencendo — ${info.pendentes} pendente(s)${temAtraso ? `, ${info.atrasadas} atrasada(s)` : ""}`
-                  : undefined
-              }
-              className={`relative flex h-14 flex-col items-center justify-center rounded-md border text-sm ${bg} ${
-                ehHoje ? "ring-2 ring-slate-900" : ""
-              }`}
-            >
+          const conteudoCelula = (
+            <>
               <span className="font-medium">{dia}</span>
               {info && (
                 <span className="mt-0.5 text-[10px] font-semibold leading-none">
                   {info.total} parc.
                 </span>
               )}
+            </>
+          );
+
+          const classeBase = `relative flex h-14 flex-col items-center justify-center rounded-md border text-sm ${bg} ${
+            ehHoje ? "ring-2 ring-slate-900" : ""
+          }`;
+
+          if (info) {
+            const dataStr = `${ano}-${String(mesIndex + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+            return (
+              <Link
+                key={dia}
+                href={`/parcelamentos?vencimento=${dataStr}`}
+                title={`${info.total} parcela(s) vencendo — ${info.pendentes} pendente(s)${temAtraso ? `, ${info.atrasadas} atrasada(s)` : ""}. Clique para ver as empresas.`}
+                className={`${classeBase} transition-shadow hover:shadow-md`}
+              >
+                {conteudoCelula}
+              </Link>
+            );
+          }
+
+          return (
+            <div key={dia} className={classeBase}>
+              {conteudoCelula}
             </div>
           );
         })}
