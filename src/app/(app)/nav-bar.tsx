@@ -6,37 +6,22 @@ import { logout } from "@/app/login/actions";
 
 const LINKS = [
   { href: "/dashboard", label: "Painel" },
+  { href: "/crm", label: "CRM" },
   { href: "/empresas", label: "Empresas" },
+  { href: "/tarefas", label: "Tarefas" },
   { href: "/parcelamentos", label: "Parcelamentos" },
-  { href: "/mensal", label: "Envio mensal" },
   { href: "/relatorios", label: "Relatórios" },
-  { href: "/importar", label: "Importar" },
-  { href: "/admin", label: "Administrador" },
 ];
 
-export function NavBar({
-  userName,
-  nomeEscritorio,
-  logo,
-}: {
-  userName: string;
-  nomeEscritorio: string;
-  logo: string | null;
-}) {
+export function NavBar({ userName }: { userName: string }) {
   const pathname = usePathname();
 
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex flex-wrap items-center gap-6">
-          <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            {logo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="" className="h-6 w-auto" />
-            )}
-            {nomeEscritorio}
-          </span>
-          <nav className="flex flex-wrap gap-1">
+          <span className="text-sm font-semibold text-slate-900">Controle de Parcelamentos</span>
+          <nav className="flex gap-1">
             {LINKS.map((link) => {
               const active = pathname === link.href || pathname.startsWith(link.href + "/");
               return (

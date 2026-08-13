@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { formatCurrency, formatDate, ESFERA_LABELS, STATUS_PARCELAMENTO_LABELS } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  ESFERA_LABELS,
+  STATUS_PARCELAMENTO_LABELS,
+  ORIGEM_CLIENTE_LABELS,
+} from "@/lib/format";
 import { updateEmpresa } from "../actions";
 import { EmpresaForm } from "../empresa-form";
 import { DeleteEmpresaButton } from "../delete-empresa-button";
+import { TarefaStatusSelect } from "../../tarefas/tarefa-status-select";
+import { DeleteTarefaButton } from "../../tarefas/delete-tarefa-button";
+import { NovaTarefaForm } from "../../tarefas/nova-tarefa-form";
+import { IniciarOnboardingForm } from "../../tarefas/iniciar-onboarding-form";
 
 export default async function EmpresaDetailPage({
   params,
@@ -20,6 +30,7 @@ export default async function EmpresaDetailPage({
         orderBy: { createdAt: "desc" },
         include: { parcelas: true },
       },
+      tarefas: { orderBy: { ordem: "asc" } },
     },
   });
 
@@ -42,12 +53,7 @@ export default async function EmpresaDetailPage({
             <div className="mt-4">
               <EmpresaForm
                 action={boundUpdate}
-                defaultValues={{
-                  nome: empresa.nome,
-                  cnpj: empresa.cnpj,
-                  telefone: empresa.telefone,
-                  email: empresa.email,
-                }}
+                defaultValues={{ nome: empresa.nome, cnpj: empresa.cnpj }}
                 submitLabel="Salvar alterações"
               />
             </div>
@@ -119,6 +125,77 @@ export default async function EmpresaDetailPage({
             })}
           </div>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Implantação</h2>
+            {empresa.origem && (
+              <p className="text-sm text-slate-500">
+                Origem: {ORIGEM_CLIENTE_LABELS[empresa.origem]}
+                {empresa.dataConversao && <> · cliente desde {formatDate(empresa.dataConversao)}</>}
+              </p>
+            )}
+          </div>
+          {empresa.tarefas.length > 0 && (
+            <span className="text-sm text-slate-500">
+              {empresa.tarefas.filter((t) => t.status === "CONCLUIDA").length}/{empresa.tarefas.length} concluídas
+            </span>
+          )}
+        </div>
+
+        {empresa.origem ? (
+          <div className="mt-3 space-y-4">
+            {empresa.tarefas.length > 0 && (
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{
+                    width: `${Math.round(
+                      (empresa.tarefas.filter((t) => t.status === "CONCLUIDA").length /
+                        empresa.tarefas.length) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <ul className="divide-y divide-slate-100">
+                {empresa.tarefas.length === 0 && (
+                  <li className="px-4 py-6 text-center text-sm text-slate-400">
+                    Nenhuma tarefa cadastrada ainda.
+                  </li>
+                )}
+                {empresa.tarefas.map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <div>
+                      <span className={t.status === "CONCLUIDA" ? "text-slate-400 line-through" : "text-slate-900"}>
+                        {t.titulo}
+                      </span>
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">
+                        {t.categoria}
+                      </span>
+                      {t.prazo && <span className="ml-2 text-xs text-slate-400">prazo {formatDate(t.prazo)}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TarefaStatusSelect tarefaId={t.id} status={t.status} />
+                      <DeleteTarefaButton id={t.id} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <NovaTarefaForm empresaId={empresa.id} />
+          </div>
+        ) : (
+          <div className="mt-3">
+            <IniciarOnboardingForm empresaId={empresa.id} />
+          </div>
+        )}
       </div>
     </div>
   );

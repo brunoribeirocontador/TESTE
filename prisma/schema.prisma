@@ -24,6 +24,26 @@ enum StatusParcela {
   PAGA
 }
 
+enum EstagioFunil {
+  NOVO_LEAD
+  CONTATO_REALIZADO
+  PROPOSTA_ENVIADA
+  CONTRATO_ENVIADO
+  GANHO
+  PERDIDO
+}
+
+enum OrigemCliente {
+  ABERTURA_CNPJ
+  MIGRACAO_CONTABILIDADE
+}
+
+enum StatusTarefa {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -33,23 +53,68 @@ model User {
 }
 
 model Empresa {
-  id            String         @id @default(cuid())
+  id            String             @id @default(cuid())
   nome          String
-  cnpj          String?        @unique
-  telefone      String?
-  email         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  cnpj          String?            @unique
+  origem        OrigemCliente?
+  dataConversao DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   parcelamentos Parcelamento[]
+  tarefas       TarefaOnboarding[]
+  lead          Lead?
 }
 
-model ConfiguracaoEscritorio {
-  id             String   @id @default("default")
-  nome           String   @default("Controle de Parcelamentos")
-  logo           String?
-  corEmail       String   @default("#0f172a")
-  telefone       String?
-  updatedAt      DateTime @updatedAt
+model Lead {
+  id            String          @id @default(cuid())
+  nome          String
+  empresaNome   String?
+  cnpj          String?
+  telefone      String?
+  email         String?
+  origemLead    String?
+  tipoServico   OrigemCliente?
+  estagio       EstagioFunil    @default(NOVO_LEAD)
+  valorProposta Float?
+  responsavel   String?
+  observacoes   String?
+  motivoPerda   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  interacoes    LeadInteracao[]
+  empresaId     String?         @unique
+  empresa       Empresa?        @relation(fields: [empresaId], references: [id])
+
+  @@index([estagio])
+}
+
+model LeadInteracao {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tipo      String
+  descricao String
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}
+
+model TarefaOnboarding {
+  id          String       @id @default(cuid())
+  empresaId   String
+  empresa     Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  titulo      String
+  categoria   String
+  status      StatusTarefa @default(PENDENTE)
+  ordem       Int          @default(0)
+  prazo       DateTime?
+  concluidaEm DateTime?
+  observacoes String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([empresaId])
+  @@index([status])
 }
 
 model Parcelamento {
@@ -60,7 +125,6 @@ model Parcelamento {
   orgao          String
   numero         String?
   descricao      String?
-  valorOriginal  Float?
   valorTotal     Float
   numeroParcelas Int
   dataInicio     DateTime
@@ -85,8 +149,6 @@ model Parcela {
   status         StatusParcela @default(PENDENTE)
   dataPagamento  DateTime?
   valorPago      Float?
-  notificado     Boolean       @default(false)
-  dataNotificacao DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

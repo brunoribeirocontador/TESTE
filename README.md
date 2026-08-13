@@ -1,9 +1,16 @@
 # Controle de Parcelamentos
 
-Sistema interno para o escritório controlar parcelamentos federais, estaduais e
-municipais de todas as empresas atendidas: cadastro de empresas, parcelamentos,
-geração automática das parcelas, controle de pagamentos, painel com alertas de
-vencimento/atraso e exportação de relatórios em CSV.
+Sistema interno do escritório com três frentes:
+
+- **CRM de vendas** (`/crm`) — funil de vendas do lead até virar cliente.
+- **Gestor de tarefas** (`/tarefas` e a aba "Implantação" de cada empresa) —
+  checklist de implantação do cliente (contrato, cadastro no Asaas, Domínio e
+  Sieg), tanto para quem está abrindo CNPJ quanto para quem está migrando de
+  outra contabilidade.
+- **Parcelamentos** — controle de parcelamentos federais, estaduais e
+  municipais de todas as empresas atendidas: cadastro de empresas,
+  parcelamentos, geração automática das parcelas, controle de pagamentos,
+  painel com alertas de vencimento/atraso e exportação de relatórios em CSV.
 
 Feito em Next.js (App Router) + TypeScript + Prisma (SQLite) + Tailwind CSS.
 
@@ -33,15 +40,26 @@ Acesse [http://localhost:3000](http://localhost:3000).
 
 ## Estrutura
 
-- `Empresa` — clientes do escritório.
+- `Lead` — contato em prospecção, com estágio no funil (novo lead, contato
+  realizado, proposta enviada, contrato enviado, ganho ou perdido) e um
+  histórico de interações (`LeadInteracao`). Ao marcar o lead como "Ganho", é
+  possível convertê-lo em cliente (`Empresa`), o que já monta o checklist de
+  implantação automaticamente.
+- `Empresa` — clientes do escritório. Guarda a origem (`ABERTURA_CNPJ` ou
+  `MIGRACAO_CONTABILIDADE`) e a data de conversão em cliente.
+- `TarefaOnboarding` — cada item do checklist de implantação de uma empresa
+  (contrato, cadastro no Asaas/Domínio/Sieg, abertura de CNPJ ou migração da
+  contabilidade anterior, etc.), com status, categoria e prazo. Os modelos
+  padrão de checklist ficam em `src/lib/onboarding-templates.ts`.
 - `Parcelamento` — um parcelamento (federal/estadual/municipal) de uma empresa,
   com órgão, número, valor total e número de parcelas. Ao criar, as parcelas
   mensais são geradas automaticamente.
 - `Parcela` — cada parcela do parcelamento, com vencimento, valor, status
   (pendente/paga) e dados do pagamento.
 
-O painel (`/dashboard`) mostra totais por empresa e por esfera, além de alertas
-de parcelas atrasadas e vencendo nos próximos 15 dias. Em `/relatorios` é
+O painel (`/dashboard`) mostra totais por empresa e por esfera, leads em aberto
+no funil, tarefas de implantação em aberto/atrasadas, além de alertas de
+parcelas atrasadas e vencendo nos próximos 15 dias. Em `/relatorios` é
 possível exportar as parcelas filtradas em CSV (compatível com Excel).
 
 ## Comandos úteis
