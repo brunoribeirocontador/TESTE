@@ -23,6 +23,10 @@ const ParcelamentoSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v ? v : undefined)),
+  valorOriginal: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.coerce.number().positive("Informe um valor original maior que zero.").optional()
+  ),
   valorTotal: z.coerce.number().positive("Informe um valor total maior que zero."),
   numeroParcelas: z.coerce
     .number()
@@ -35,6 +39,9 @@ const ParcelamentoSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v ? v : undefined)),
+}).refine((data) => data.valorOriginal === undefined || data.valorOriginal >= data.valorTotal, {
+  error: "O valor original deve ser maior ou igual ao valor total negociado.",
+  path: ["valorOriginal"],
 });
 
 export type ParcelamentoFormState = { error?: string } | undefined;
@@ -66,6 +73,7 @@ export async function createParcelamento(
     orgao: formData.get("orgao"),
     numero: formData.get("numero"),
     descricao: formData.get("descricao"),
+    valorOriginal: formData.get("valorOriginal"),
     valorTotal: formData.get("valorTotal"),
     numeroParcelas: formData.get("numeroParcelas"),
     dataInicio: formData.get("dataInicio"),
@@ -107,6 +115,10 @@ const UpdateParcelamentoSchema = z.object({
     .trim()
     .optional()
     .transform((v) => (v ? v : undefined)),
+  valorOriginal: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.coerce.number().positive("Informe um valor original maior que zero.").optional()
+  ),
   observacoes: z
     .string()
     .trim()
@@ -126,12 +138,21 @@ export async function updateParcelamento(
     orgao: formData.get("orgao"),
     numero: formData.get("numero"),
     descricao: formData.get("descricao"),
+    valorOriginal: formData.get("valorOriginal"),
     observacoes: formData.get("observacoes"),
     status: formData.get("status"),
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const atual = await db.parcelamento.findUnique({ where: { id }, select: { valorTotal: true } });
+  if (!atual) {
+    return { error: "Parcelamento não encontrado." };
+  }
+  if (parsed.data.valorOriginal !== undefined && parsed.data.valorOriginal < atual.valorTotal) {
+    return { error: "O valor original deve ser maior ou igual ao valor total negociado." };
   }
 
   const parcelamento = await db.parcelamento.update({ where: { id }, data: parsed.data });

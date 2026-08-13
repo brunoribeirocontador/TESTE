@@ -4,6 +4,7 @@ import { ESFERA_LABELS, formatCurrency, formatDate } from "@/lib/format";
 import { startOfTodayUTC } from "@/lib/dates";
 
 const DIAS_ALERTA = 15;
+const ATRASOS_ALERTA_EMPRESA = 3;
 
 export default async function DashboardPage() {
   const hoje = startOfTodayUTC();
@@ -29,23 +30,40 @@ export default async function DashboardPage() {
     porEsfera[p.parcelamento.esfera] += p.valor;
   }
 
-  const porEmpresaMap = new Map<string, { nome: string; saldo: number; qtd: number }>();
+  const porEmpresaMap = new Map<
+    string,
+    { nome: string; saldo: number; qtd: number; atrasadas: number }
+  >();
   for (const p of parcelasPendentes) {
     const key = p.parcelamento.empresaId;
-    const atual = porEmpresaMap.get(key) ?? { nome: p.parcelamento.empresa.nome, saldo: 0, qtd: 0 };
+    const atual =
+      porEmpresaMap.get(key) ?? { nome: p.parcelamento.empresa.nome, saldo: 0, qtd: 0, atrasadas: 0 };
     atual.saldo += p.valor;
     atual.qtd += 1;
+    if (p.vencimento < hoje) atual.atrasadas += 1;
     porEmpresaMap.set(key, atual);
   }
-  const porEmpresa = [...porEmpresaMap.entries()]
-    .map(([empresaId, v]) => ({ empresaId, ...v }))
-    .sort((a, b) => b.saldo - a.saldo)
-    .slice(0, 8);
+  const todasEmpresasComSaldo = [...porEmpresaMap.entries()].map(([empresaId, v]) => ({
+    empresaId,
+    ...v,
+  }));
+  const porEmpresa = [...todasEmpresasComSaldo].sort((a, b) => b.saldo - a.saldo).slice(0, 8);
+  const empresasComAtraso = todasEmpresasComSaldo.filter((e) => e.atrasadas > 0);
+  const empresasAtrasoCritico = empresasComAtraso.filter((e) => e.atrasadas > ATRASOS_ALERTA_EMPRESA);
 
-  const [totalEmpresas, totalParcelamentosAtivos] = await Promise.all([
+  const [totalEmpresas, totalParcelamentosAtivos, parcelamentosComReducao] = await Promise.all([
     db.empresa.count(),
     db.parcelamento.count({ where: { status: "ATIVO" } }),
+    db.parcelamento.findMany({
+      where: { valorOriginal: { not: null } },
+      select: { valorOriginal: true, valorTotal: true },
+    }),
   ]);
+
+  const economiaTotal = parcelamentosComReducao.reduce((acc, p) => {
+    const economia = (p.valorOriginal ?? 0) - p.valorTotal;
+    return economia > 0 ? acc + economia : acc;
+  }, 0);
 
   return (
     <div className="space-y-8">
@@ -62,6 +80,24 @@ export default async function DashboardPage() {
           label="Parcelas em atraso"
           value={String(atrasadas.length)}
           highlight={atrasadas.length > 0}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card
+          label="Empresas com atraso"
+          value={String(empresasComAtraso.length)}
+          highlight={empresasComAtraso.length > 0}
+        />
+        <Card
+          label={`Empresas com mais de ${ATRASOS_ALERTA_EMPRESA} parcelas atrasadas`}
+          value={String(empresasAtrasoCritico.length)}
+          highlight={empresasAtrasoCritico.length > 0}
+        />
+        <Card
+          label="Economia em parcelamentos com redução"
+          value={formatCurrency(economiaTotal)}
+          tone="success"
         />
       </div>
 
@@ -108,28 +144,45 @@ export default async function DashboardPage() {
               <tr>
                 <th className="px-4 py-2">Empresa</th>
                 <th className="px-4 py-2">Parcelas em aberto</th>
+                <th className="px-4 py-2">Atrasadas</th>
                 <th className="px-4 py-2 text-right">Saldo devedor</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {porEmpresa.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                     Nenhum saldo em aberto.
                   </td>
                 </tr>
               )}
-              {porEmpresa.map((e) => (
-                <tr key={e.empresaId} className="hover:bg-slate-50">
-                  <td className="px-4 py-2">
-                    <Link href={`/empresas/${e.empresaId}`} className="font-medium text-slate-900 hover:underline">
-                      {e.nome}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2 text-slate-700">{e.qtd}</td>
-                  <td className="px-4 py-2 text-right font-medium text-slate-900">{formatCurrency(e.saldo)}</td>
-                </tr>
-              ))}
+              {porEmpresa.map((e) => {
+                const critico = e.atrasadas > ATRASOS_ALERTA_EMPRESA;
+                return (
+                  <tr key={e.empresaId} className={critico ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"}>
+                    <td className="px-4 py-2">
+                      <Link href={`/empresas/${e.empresaId}`} className="font-medium text-slate-900 hover:underline">
+                        {e.nome}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-slate-700">{e.qtd}</td>
+                    <td className="px-4 py-2">
+                      {e.atrasadas > 0 ? (
+                        <span
+                          className={`rounded px-2 py-0.5 text-xs font-medium ${
+                            critico ? "bg-red-600 text-white" : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {e.atrasadas} {critico ? "⚠" : ""}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-right font-medium text-slate-900">{formatCurrency(e.saldo)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -138,11 +191,28 @@ export default async function DashboardPage() {
   );
 }
 
-function Card({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Card({
+  label,
+  value,
+  highlight,
+  tone,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  tone?: "success";
+}) {
+  const border = highlight
+    ? "border-red-200 bg-red-50"
+    : tone === "success"
+      ? "border-emerald-200 bg-emerald-50"
+      : "border-slate-200 bg-white";
+  const text = highlight ? "text-red-700" : tone === "success" ? "text-emerald-700" : "text-slate-900";
+
   return (
-    <div className={`rounded-lg border p-4 ${highlight ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
+    <div className={`rounded-lg border p-4 ${border}`}>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-semibold ${highlight ? "text-red-700" : "text-slate-900"}`}>{value}</p>
+      <p className={`mt-1 text-xl font-semibold ${text}`}>{value}</p>
     </div>
   );
 }

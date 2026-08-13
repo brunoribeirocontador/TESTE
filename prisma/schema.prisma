@@ -49,6 +49,7 @@ model Parcelamento {
   orgao          String
   numero         String?
   descricao      String?
+  valorOriginal  Float?
   valorTotal     Float
   numeroParcelas Int
   dataInicio     DateTime

@@ -7,6 +7,26 @@ export default async function RelatoriosPage() {
     <div className="mx-auto max-w-xl">
       <h1 className="text-lg font-semibold text-slate-900">Relatórios</h1>
       <p className="text-sm text-slate-500">
+        Exporte os dados em planilha Excel (com abas separadas) ou em CSV filtrado.
+      </p>
+
+      <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-900">Planilha Excel completa</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Gera um arquivo .xlsx com duas abas: <strong>Parcelas do mês</strong> (vencimentos do mês
+          atual) e <strong>Geral</strong> (visão consolidada de todos os parcelamentos, com valor
+          original, economia e saldo devedor).
+        </p>
+        <a
+          href="/api/relatorios/planilha"
+          className="mt-4 inline-flex rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Exportar planilha Excel (.xlsx)
+        </a>
+      </div>
+
+      <h2 className="mt-8 text-sm font-semibold text-slate-900">CSV filtrado</h2>
+      <p className="mt-1 text-sm text-slate-500">
         Exporte as parcelas cadastradas em CSV (compatível com Excel) aplicando os filtros desejados.
       </p>
 

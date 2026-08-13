@@ -27,6 +27,10 @@ export default async function ParcelamentoDetailPage({
   const hoje = startOfTodayUTC();
   const pendentes = parcelamento.parcelas.filter((p) => p.status === "PENDENTE");
   const saldo = pendentes.reduce((acc, p) => acc + p.valor, 0);
+  const economia =
+    parcelamento.valorOriginal && parcelamento.valorOriginal > parcelamento.valorTotal
+      ? parcelamento.valorOriginal - parcelamento.valorTotal
+      : 0;
   const boundUpdate = updateParcelamento.bind(null, parcelamento.id);
 
   return (
@@ -61,6 +65,12 @@ export default async function ParcelamentoDetailPage({
             {parcelamento.empresa.nome}
           </Link>
           {parcelamento.descricao && <p className="mt-1 text-sm text-slate-600">{parcelamento.descricao}</p>}
+          {economia > 0 && (
+            <p className="mt-2 inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
+              Economia de {formatCurrency(economia)} em relação ao valor original (
+              {formatCurrency(parcelamento.valorOriginal!)})
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-500">Saldo devedor</p>
@@ -148,6 +158,7 @@ export default async function ParcelamentoDetailPage({
                   orgao: parcelamento.orgao,
                   numero: parcelamento.numero,
                   descricao: parcelamento.descricao,
+                  valorOriginal: parcelamento.valorOriginal,
                   observacoes: parcelamento.observacoes,
                   status: parcelamento.status,
                 }}

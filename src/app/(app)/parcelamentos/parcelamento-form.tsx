@@ -103,7 +103,7 @@ export function ParcelamentoForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="valorTotal" className="block text-sm font-medium text-slate-700">
-            Valor total (R$)
+            Valor total negociado (R$)
           </label>
           <input
             id="valorTotal"
@@ -130,6 +130,25 @@ export function ParcelamentoForm({
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="valorOriginal" className="block text-sm font-medium text-slate-700">
+          Valor original antes da redução (R$) <span className="text-slate-400">(opcional)</span>
+        </label>
+        <input
+          id="valorOriginal"
+          name="valorOriginal"
+          type="number"
+          step="0.01"
+          min="0.01"
+          placeholder="Preencha se este parcelamento teve desconto/redução de multa e juros"
+          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Se informado, a diferença entre este valor e o valor total negociado entra no painel de
+          economia do escritório.
+        </p>
       </div>
 
       <div>
